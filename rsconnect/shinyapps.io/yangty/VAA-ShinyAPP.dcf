@@ -1,0 +1,13 @@
+name: VAA-ShinyAPP
+title: VAA-ShinyAPP
+username:
+account: yangty
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9385610
+bundleId: 7402956
+url: https://yangty.shinyapps.io/VAA-ShinyAPP/
+when: 1688061332.67075
+lastSyncTime: 1688061332.67077
+asMultiple: FALSE
+asStatic: FALSE

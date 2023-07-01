@@ -1,0 +1,265 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+```{r}
+pacman::p_load(jsonlite, tidygraph, ggraph, visNetwork, tidyverse, igraph, ggiraph, ggplot2, ggthemes, patchwork, plotly, ggstatsplot, hrbrthemes)
+```
+
+```{r}
+MC2 <- fromJSON("mc2_challenge_graph.json")
+```
+
+```{r}
+MC2_nodes <- as_tibble(MC2$nodes) %>%
+  select(id, shpcountry, rcvcountry)
+MC2_edges <- as_tibble(MC2$links) %>%
+  mutate(Arrivaldate = ymd(arrivaldate)) %>%
+  select(source, Arrivaldate, hscode, 
+         valueofgoods_omu, weightkg, valueofgoodsusd) %>%
+  distinct()
+```
+
+```{r}
+#drop the valueofgoods_omu column, and remove rows with missing value in volumnteu column
+MC2_edges_clean <- MC2_edges[, -which(names(MC2_edges) == "valueofgoods_omu")]
+
+MC2_nodes_clean <- na.omit(MC2_nodes)
+```
+
+```{r}
+# Create a list to store the data frames
+MC2_data <- list(
+  edges = MC2_edges_clean,
+  nodes = MC2_nodes_clean
+)
+
+# Save the list as an RDS file
+saveRDS(MC2_data, file = "MC2_data.rds")
+
+```
+
+```{r}
+MC2_data <- MC2_nodes_clean %>%
+  left_join(MC2_edges_clean %>% select(source, Arrivaldate, hscode, weightkg, valueofgoodsusd), by = c("id" = "source"))
+
+# Randomly select 30,000 observations from MC2_data
+MC2_data <- MC2_data %>% sample_n(size = 500000, replace = FALSE)
+```
+
+```{r}
+# Save the list as an RDS file
+saveRDS(MC2_data, file = "MC2_data.rds")
+```
+
+```{r}
+# Load the MC2 data from the RDS file
+MC2_data <- readRDS("MC2_data.rds")
+```
+
+```{r}
+MC2_data <- MC2_data %>%
+  mutate(fishtype = case_when(
+    startsWith(hscode, "301") ~ "live fish",
+    startsWith(hscode, "302") ~ "fresh fish",
+    startsWith(hscode, "303") ~ "frozen fish",
+    startsWith(hscode, "304") ~ "fish meat",
+    startsWith(hscode, "305") ~ "processed fish",
+    startsWith(hscode, "306") ~ "crustaceans",  #like lobster or shrimps
+    startsWith(hscode, "307") ~ "molluscs",  #like Oysters or Abalone
+    startsWith(hscode, "308") ~ "aquatic invertebrates", #like Sea cucumbers?
+    startsWith(hscode, "309") ~ "seafood flours",  #fish powder, shrimp powder?
+    TRUE ~ "not fish"
+  ))
+```
+
+```{r}
+summary(MC2_data)
+```
+
+```{r}
+MC2_data_p1 <- MC2_data %>%
+  count(fishtype) %>%
+  arrange(n) %>%
+  mutate(fishtype = factor(fishtype, levels = unique(fishtype)))
+
+MC2_data_p1 <- plot_ly(MC2_data_p1, x = ~reorder(fishtype, n), y = ~n, type = "bar", color = I('#808de8'), text = ~n,
+                               textposition = "auto", hoverinfo = "text", texttemplate = "%{y}") %>%
+  layout(
+    title = list(text = "Distribution of source nodes by fishtype", x = 0.5),
+    yaxis = list(title = "No. of Companies"),
+    xaxis = list(title = "fishtype", tickangle = -90),
+    showlegend = FALSE
+  )
+
+MC2_data_p1
+```
+
+```{r}
+MC2_data_p2 <- MC2_data %>%
+  group_by(year = year(Arrivaldate), month = month(Arrivaldate), fishtype) %>%
+  summarise(no_shipment = n()) %>%
+  filter(fishtype != "not fish") %>%
+  ungroup()
+
+tt <- c(paste("Year:", MC2_data_p2$year, "<br>Month:", MC2_data_p2$month, "<br>fishtype:", MC2_data_p2$fishtype, "<br>NoShipment:", MC2_data_p2$no_shipment))
+
+MC2_p2 <- MC2_data_p2 %>%
+  mutate(month = factor(month, levels = 1:12, labels = 1:12)) %>%
+  ggplot(aes(x = month, y = no_shipment, fill = fishtype, text = tt)) +
+  geom_bar(position = "stack", stat = "identity") +
+  scale_fill_viridis(discrete = TRUE) +
+  labs(title = "No. of shipment per month, 2028 - 2034", x = 'Month', y = 'No of shipment') +
+  theme(legend.position = "none") +
+  xlab("") +
+  scale_x_discrete(labels = 1:12)
+
+MC2_p2 <- ggplotly(MC2_p2, tooltip = "text")
+
+MC2_p2 <- subplot(MC2_p2, nrows = 1, shareX = TRUE)
+
+MC2_p2
+```
+
+```{r}
+MC2_data_p3 <- MC2_data %>%
+  group_by(year = year(Arrivaldate), month = month(Arrivaldate), fishtype) %>%
+  summarise(no_shipment = n()) %>%
+  filter(fishtype != "not fish") %>%
+  ungroup()
+
+MC2_p3 <- plot_ly(MC2_data_p3, x = ~month, y = ~no_shipment, color = ~fishtype) %>%
+  add_lines(aes(group = fishtype), line = list(shape = "spline", smoothing = 0.2)) %>%
+  layout(
+    title = list(text = "Total shipment per month by fish type, 2028 - 2034", x = 0.5),
+    xaxis = list(title = "Month"),
+    yaxis = list(title = "Num of Shipment"),
+    showlegend = TRUE
+  )
+
+MC2_p3
+```
+
+```{r}
+glimpse(MC2_data)
+```
+
+```{r}
+
+# Calculate the monthly sum of valueofgoodsusd
+MC2_monthly_sum <- MC2_data %>%
+  mutate(Month = floor_date(Arrivaldate, "month")) %>%
+  group_by(Month) %>%
+  summarize(total_value = sum(valueofgoodsusd, na.rm = TRUE))
+
+# Convert the Month variable to character format
+MC2_monthly_sum$Month <- as.character(MC2_monthly_sum$Month)
+
+# Create a Plotly object with modified x-axis options
+MC2_p4 <- plot_ly(MC2_monthly_sum, x = ~Month, y = ~total_value, type = "scatter", mode = "lines") %>%
+  layout(
+    xaxis = list(
+      title = "Month and Year",
+      tickformat = "%b<br>%Y",  # Format the tick labels as abbreviated month and year
+      tickangle = -45,  # Rotate the tick labels for better readability
+      tickfont = list(size = 10)  # Adjust the font size of tick labels
+    ),
+    yaxis = list(title = "Sum of Value of Goods in USD"),
+    title = "Time-series Plot of Value of Goods"
+  )
+
+MC2_p4
+```
+
+```{r}
+MC2_p5 <- ggplot(MC2_data, aes(x = weightkg, y = valueofgoodsusd)) +
+  geom_hex(bins = 50) +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme_minimal() +
+  labs(x = "Weight (kg) [Log Scale]", y = "Value of Goods (USD) [Log Scale]",
+       title = "Hexbin Plot of Weight vs Value of Goods (Log Scale)")
+
+MC2_p5 <- ggplotly(MC2_p5)
+MC2_p5
+```
+
+```{r}
+# Filter the data to remove rows with weightkg or valueofgoodsusd equal to 0
+MC2_data_filtered <- MC2_data[MC2_data$weightkg != 0 & MC2_data$valueofgoodsusd != 0, ]
+
+# Fit a linear model
+lm_model <- lm(valueofgoodsusd ~ weightkg, data = MC2_data_filtered)
+
+# Calculate the weight-to-value ratio
+MC2_data_filtered$weight_value_ratio <- MC2_data_filtered$valueofgoodsusd / MC2_data_filtered$weightkg
+
+# Rank the top 500 points with the highest ratio
+top_500_ratio <- head(MC2_data_filtered[order(-MC2_data_filtered$weight_value_ratio), ], 500)
+
+# Plot the scatter plot with the top 500 points and linear model
+MC2_plot8 <- ggplot(top_500_ratio, aes(x = weightkg, y = valueofgoodsusd)) +
+  geom_point(aes(size = weight_value_ratio, alpha = weight_value_ratio), color = "blue", shape = 16) +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme_minimal() +
+  labs(x = "Weight (kg) [Log Scale]", y = "Value of Goods (USD) [Log Scale]",
+       title = "Scatter Plot of Weight vs Value of Goods (Log Scale)") +
+  guides(size = FALSE, alpha = FALSE) +
+  scale_alpha_continuous(range = c(0.1, 10)) +
+  scale_size_continuous(range = c(1, 10)) +
+  geom_smooth(method = "lm", formula = y ~ x, color = "red")
+
+MC2_plot8
+```
+
+```{r}
+library(dplyr)
+library(plotly)
+library(forcats)
+
+# Aggregating number of routes into a new dataframe
+routes_by_year <- MC2_data %>%
+  mutate(yearmonth = format(Arrivaldate, "%b")) %>%
+  group_by(year = lubridate::year(Arrivaldate), yearmonth) %>%
+  summarise(nroutes = n()) %>%
+  arrange(year, factor(yearmonth, levels = month.abb)) %>%
+  ungroup()
+
+# Specify the order of the month abbreviations
+routes_by_year$yearmonth <- ordered(routes_by_year$yearmonth, levels = month.abb)
+
+# Find the maximum number of routes for the anomaly
+max_routes <- routes_by_year %>%
+  filter(nroutes == max(nroutes))
+
+# Create the plot
+anomaly_plot <- plot_ly(routes_by_year, x = ~yearmonth, y = ~nroutes, color = ~factor(year),
+                        colors = c("#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF", "#FF00FF"), 
+                        type = 'scatter', mode = 'lines+markers') %>%
+  layout(
+    title = "Number of Trade Routes by Year",
+    xaxis = list(title = "Month"),
+    yaxis = list(title = "Number of Trade Routes")
+  )
+
+# Add annotation for the anomaly
+if (!is_empty(max_routes)) {
+  anomaly_annotation <- list(
+    x = max_routes$yearmonth,
+    y = max_routes$nroutes,
+    text = "Anomaly",
+    showarrow = TRUE,
+    arrowhead = 1,
+    arrowsize = 1,
+    arrowwidth = 2,
+    arrowcolor = "red"
+  )
+  
+  anomaly_plot <- anomaly_plot %>% layout(annotations = anomaly_annotation)
+}
+
+anomaly_plot
+```

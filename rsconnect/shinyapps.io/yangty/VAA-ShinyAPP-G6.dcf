@@ -1,0 +1,14 @@
+name: VAA-ShinyAPP-G6
+title: VAA-ShinyAPP-G6
+username:
+account: yangty
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9384856
+bundleId: 7409597
+url: https://yangty.shinyapps.io/VAA-ShinyAPP-G6/
+when: 1688226030.62676
+lastSyncTime: 1688226030.62677
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RDataTmp|未命名.qmd
