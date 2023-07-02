@@ -34,8 +34,14 @@ routes_by_year <- MC2_data %>%
   arrange(year, factor(yearmonth, levels = month.abb)) %>%
   ungroup()
 
+# Read data for network plot 1
 edges <- read_excel("edges.xlsx")
 nodes <- read_excel("nodes.xlsx")
+
+# Read data for network plot 2
+country_edges <- read_excel("country_edges_2.xlsx")
+country_nodes <- read_excel("country_nodes_2.xlsx")
+
 
 # Define UI
 ui <- dashboardPage(
@@ -45,23 +51,22 @@ ui <- dashboardPage(
       menuItem("Home", tabName = "tab_home", icon = icon("home")),
       
       menuItem("General", tabName = "tab_summary", icon = icon("anchor"),
-        menuSubItem("By Fishtype", tabName = "tab_fishtype", icon = icon("bar-chart")),
-        menuSubItem("# of shipment/Month", tabName = "tab_shipment_month", icon = icon("bar-chart")),
-        menuSubItem("Shipment/month by fishtype", tabName = "tab_shipment_by_fishtype", icon = icon("line-chart")),
-        menuSubItem("Value of Goods in Time", tabName = "tab_value_of_goods", icon = icon("line-chart")),
-        menuSubItem("Weight vs Value of Goods", tabName = "tab_weight_vs_value", icon = icon("area-chart"))
+               menuSubItem("By Fishtype", tabName = "tab_fishtype", icon = icon("bar-chart")),
+               menuSubItem("# of shipment/Month", tabName = "tab_shipment_month", icon = icon("bar-chart")),
+               menuSubItem("Shipment/month by fishtype", tabName = "tab_shipment_by_fishtype", icon = icon("line-chart")),
+               menuSubItem("Value of Goods in Time", tabName = "tab_value_of_goods", icon = icon("line-chart")),
+               menuSubItem("Weight vs Value of Goods", tabName = "tab_weight_vs_value", icon = icon("area-chart"))
       ),
       
       menuItem("Network", tabName = "tab_network", icon = icon("link"),
-        menuSubItem("Network1", tabName = "tab_network1", icon = icon("circle")),
-        menuSubItem("Network2", tabName = "tab_network2", icon = icon("puzzle-piece"))
+               menuSubItem("Shipment Network", tabName = "tab_network1", icon = icon("ship")),
+               menuSubItem("Country Network", tabName = "tab_network2", icon = icon("globe"))
       ),
       
       menuItem("Anomaly", tabName = "tab_anomaly", icon = icon("chart-line"),
-        menuSubItem("# of Traderoutes", tabName = "tab_traderoutes", icon = icon("line-chart")),
-        menuSubItem("Value in Time", tabName = "tab_anomaly2", icon = icon("line-chart")),
-        menuSubItem("Weight vs Value Ratio", tabName = "tab_anomaly3", icon = icon("arrows-h"))
-        
+               menuSubItem("# of Traderoutes", tabName = "tab_traderoutes", icon = icon("line-chart")),
+               menuSubItem("Value in Time", tabName = "tab_anomaly2", icon = icon("line-chart")),
+               menuSubItem("Weight vs Value Ratio", tabName = "tab_anomaly3", icon = icon("arrows-h"))
       )
     )
   ),
@@ -100,125 +105,210 @@ ui <- dashboardPage(
       
       tabItem(
         tabName = "tab_fishtype",
-        h2("Distribution of Source Nodes by Fish Type"),
         fluidRow(
           column(
-            width = 4,
-            selectInput(
-              "fish_type_select",
-              "Select Fish Type:",
-              choices = unique(MC2_data$fishtype),
-              selected = NULL,
-              multiple = TRUE
+            width = 3,
+            accordion(
+              id = "parameters_fishtype",
+              accordionItem(
+                title = span("Filters", style = "font-size: 14px; font-weight: bold"),
+                status = "primary",
+                collapsed = FALSE,
+                selectInput(
+                  "fish_type_select",
+                  "Select Fish Type:",
+                  choices = unique(MC2_data$fishtype),
+                  selected = NULL,
+                  multiple = TRUE
+                )
+              )
             )
           ),
-          column(width = 8, plotlyOutput("plot1"))
+          column(width = 9, plotlyOutput("plot1"))
         )
       ),
       
       tabItem(
         tabName = "tab_shipment_month",
-        h2("No. of Shipments per Month, 2028 - 2034"),
         fluidRow(
           column(
-            width = 4,
-            selectInput(
-              "month_select",
-              "Select Month:",
-              choices = unique(MC2_data_p2$month),
-              selected = NULL,
-              multiple = TRUE
+            width = 3,
+            accordion(
+              id = "parameters_shipment_month",
+              accordionItem(
+                title = span("Filters", style = "font-size: 14px; font-weight: bold"),
+                status = "primary",
+                collapsed = FALSE,
+                selectInput(
+                  "month_select",
+                  "Select Month:",
+                  choices = unique(MC2_data_p2$month),
+                  selected = NULL,
+                  multiple = TRUE
+                )
+              )
             )
           )
         ),
-        column(width = 8, plotlyOutput("plot2"))
+        column(width = 9, plotlyOutput("plot2"))
       ),
       
       tabItem(
         tabName = "tab_shipment_by_fishtype",
-        h2("Total Shipments per Month by Fish Type, 2028 - 2034"),
         fluidRow(
           column(
-            width = 4,
-            checkboxGroupInput(
-              "fish_type_select_p3",
-              "Select Fish Type:",
-              choices = unique(MC2_data$fishtype),
-              selected = NULL
+            width = 3,
+            accordion(
+              id = "parameters_shipment_by_fishtype",
+              accordionItem(
+                title = span("Filters", style = "font-size: 14px; font-weight: bold"),
+                status = "primary",
+                collapsed = FALSE,
+                checkboxGroupInput(
+                  "fish_type_select_p3",
+                  "Select Fish Type:",
+                  choices = unique(MC2_data$fishtype),
+                  selected = NULL
+                )
+              )
             )
           )
         ),
-        column(width = 8, plotlyOutput("plot3"))
+        column(width = 9, plotlyOutput("plot3"))
       ),
       
       tabItem(
         tabName = "tab_value_of_goods",
-        h2("Total Value of Goods over Time"),
-        sliderInput(
-          "time_range",
-          "Select Time Range:",
-          min = min(MC2_data$Arrivaldate),
-          max = max(MC2_data$Arrivaldate),
-          value = c(min(MC2_data$Arrivaldate), max(MC2_data$Arrivaldate)),
-          timeFormat = "%Y-%m",
-          ticks = TRUE
+        fluidRow(
+          column(
+            width = 3,
+            accordion(
+              id = "parameters_value_of_goods",
+              accordionItem(
+                title = span("Filters", style = "font-size: 14px; font-weight: bold"),
+                status = "primary",
+                collapsed = FALSE,
+                sliderInput(
+                  "time_range",
+                  "Select Time Range:",
+                  min = min(MC2_data$Arrivaldate),
+                  max = max(MC2_data$Arrivaldate),
+                  value = c(min(MC2_data$Arrivaldate), max(MC2_data$Arrivaldate)),
+                  timeFormat = "%Y-%m",
+                  ticks = TRUE
+                )
+              )
+            )
+          )
         ),
-        column(width = 8, plotlyOutput("plot4"))
+        column(width = 9, plotlyOutput("plot4"))
       ),
       
       tabItem(
         tabName = "tab_weight_vs_value",
-        h3("Weight vs Value of Goods"),
-        selectInput("yearInput", "Select Year", choices = unique(format(MC2_data$Arrivaldate, "%Y"))),
+        fluidRow(
+          column(
+            width = 3,
+            accordion(
+              id = "parameters_weight_vs_value",
+              accordionItem(
+                title = span("Filters", style = "font-size: 14px; font-weight: bold"),
+                status = "primary",
+                collapsed = FALSE,
+                selectInput("yearInput", "Select Year", choices = unique(format(MC2_data$Arrivaldate, "%Y")))
+              )
+            )
+          )
+        ),
         plotlyOutput("plot5", height = "600px", width = "800px")
       ),
       
       tabItem(
         tabName = "tab_network1",
-        h2("Network Plot"),
         fluidRow(
           column(
-            width = 4,
-            selectInput("year", "Select Year", choices = unique(edges$Year))
-          ),
-          column(
-            width = 4,
-            radioButtons(
-              "centralityMeasure",
-              "Centrality Measure:",
-              choices = c("betweenness", "degree"),
-              selected = "betweenness"
-            )
-          ),
-          column(
-            width = 4,
-            sliderInput(
-              "centralityPercentile",
-              "Centrality Percentile:",
-              min = 0, max = 100, value = c(0, 100), step = 20
+            width = 3,
+            accordion(
+              id = "parameters_network1",
+              accordionItem(
+                title = span("Filters", style = "font-size: 14px; font-weight: bold"),
+                status = "primary",
+                collapsed = FALSE,
+                selectInput("year", "Select Year", choices = unique(edges$Year)),
+                radioButtons(
+                  "centralityMeasure",
+                  "Centrality Measure:",
+                  choices = c("betweenness", "degree"),
+                  selected = "betweenness"
+                ),
+                sliderInput(
+                  "centralityPercentile",
+                  "Centrality Percentile:",
+                  min = 0, max = 100, value = c(0, 100), step = 20
+                )
+              )
             )
           )
         ),
         fluidRow(
           column(
-            width = 12,
+            width = 9,
             visNetworkOutput("network", height = "400px")
           )
         )
       ),
       
+      tabItem("tab_network2",
+              fluidRow(
+                column(width = 3,
+                       accordion(
+                         id = "parameters",
+                         accordionItem(
+                           title = span("Filters", style = "font-size: 14px; font-weight: bold"),
+                           status = "primary",
+                           collapsed = FALSE,
+                           sliderInput("time_range", "Select Time Range:",
+                                       min = min(country_edges$ArrivalDate),
+                                       max = max(country_edges$ArrivalDate),
+                                       value = c(min(country_edges$ArrivalDate), max(country_edges$ArrivalDate)),
+                                       step = 1,
+                                       timeFormat = "%Y-%m",
+                                       ticks = TRUE
+                           ),
+                           sliderInput("degree_percentile", "Degree Centrality Percentile:",
+                                       min = 0, max = 100, value = c(0, 100), step = 20
+                           ),
+                           sliderInput("weight_percentile", "Weight Percentile:",
+                                       min = 0, max = 100, value = c(0, 100), step = 20
+                           )
+                         )
+                       )
+                ),
+                column(width = 9,
+                       visNetworkOutput("networkGraph")
+                )
+              )
+      ),
+      
       tabItem(
         tabName = "tab_traderoutes",
-        h2("Increasing Trend in Traderoute Count in 2029 and 2033"),
         fluidRow(
           column(
-            width = 4,
-            checkboxGroupInput(
-              "selected_years",
-              "Select Years:",
-              choices = unique(routes_by_year$year),
-              selected = unique(routes_by_year$year),
-              inline = TRUE
+            width = 3,
+            accordion(
+              id = "parameters_traderoutes",
+              accordionItem(
+                title = span("Filters", style = "font-size: 14px; font-weight: bold"),
+                status = "primary",
+                collapsed = FALSE,
+                checkboxGroupInput(
+                  "selected_years",
+                  "Select Years:",
+                  choices = unique(routes_by_year$year),
+                  selected = unique(routes_by_year$year),
+                  inline = TRUE
+                )
+              )
             )
           )
         ),
@@ -232,41 +322,65 @@ ui <- dashboardPage(
       
       tabItem(
         tabName = "tab_anomaly2",
-        h2("Anomaly in Total Value of Goods over Time"),
-        sliderInput(
-          "time_range_plot7",
-          "Select Time Range:",
-          min = min(MC2_data$Arrivaldate),
-          max = max(MC2_data$Arrivaldate),
-          value = c(min(MC2_data$Arrivaldate), max(MC2_data$Arrivaldate)),
-          timeFormat = "%Y-%m",
-          ticks = TRUE
+        fluidRow(
+          column(
+            width = 3,
+            accordion(
+              id = "parameters_anomaly2",
+              accordionItem(
+                title = span("Filters", style = "font-size: 14px; font-weight: bold"),
+                status = "primary",
+                collapsed = FALSE,
+                sliderInput(
+                  "time_range_plot7",
+                  "Select Time Range:",
+                  min = min(MC2_data$Arrivaldate),
+                  max = max(MC2_data$Arrivaldate),
+                  value = c(min(MC2_data$Arrivaldate), max(MC2_data$Arrivaldate)),
+                  timeFormat = "%Y-%m",
+                  ticks = TRUE
+                )
+              )
+            )
+          )
         ),
-        column(width = 8, plotlyOutput("plot7"))
+        column(width = 9, plotlyOutput("plot7"))
       ),
       
       tabItem(
         tabName = "tab_anomaly3",
-        h2("Anomaly in Total Value of Goods over Time"),
-        sliderInput(
-          "top_dots_plot8",
-          "Select Number of Top Dots:",
-          min = 1,
-          max = 500,
-          value = 100,
-          step = 1
+        fluidRow(
+          column(
+            width = 3,
+            accordion(
+              id = "parameters_anomaly3",
+              accordionItem(
+                title = span("Filters", style = "font-size: 14px; font-weight: bold"),
+                status = "primary",
+                collapsed = FALSE,
+                sliderInput(
+                  "top_dots_plot8",
+                  "Select Number of Top Dots:",
+                  min = 1,
+                  max = 500,
+                  value = 100,
+                  step = 1
+                )
+              )
+            )
+          )
         ),
         fluidRow(
           column(
-            width = 8,
+            width = 12,
             plotlyOutput("plot8")
           )
         )
-        
       )
     )
   )
 )
+
 
 # Define server
 server <- function(input, output) {
@@ -401,46 +515,49 @@ server <- function(input, output) {
   
   
   
-  filtered_edges <- reactive({
+  filtered_edges1 <- reactive({
     edges %>%
       filter(Year == input$year)
   })
   
-  filtered_nodes <- reactive({
+  filtered_nodes1 <- reactive({
     if (input$centralityMeasure == "betweenness") {
       nodes %>%
-        filter(id %in% unique(c(filtered_edges()$from, filtered_edges()$to)) &
+        filter(id %in% unique(c(filtered_edges1()$from, filtered_edges1()$to)) &
                  betweenness_centrality >= quantile(betweenness_centrality, input$centralityPercentile / 100))
     } else if (input$centralityMeasure == "degree") {
       nodes %>%
-        filter(id %in% unique(c(filtered_edges()$from, filtered_edges()$to)) &
+        filter(id %in% unique(c(filtered_edges1()$from, filtered_edges1()$to)) &
                  degree_centrality >= quantile(degree_centrality, input$centralityPercentile / 100))
     }
   })
   
   output$network <- renderVisNetwork({
-    # Create the network graph using visNetwork
     visNetwork(
-      nodes = filtered_nodes(),
-      edges = filtered_edges(),
+      nodes = filtered_nodes1(),
+      edges = filtered_edges1(),
+      main = "Shipment Network",
       width = "100%"
     ) %>%
-      visEdges(arrows = list(
-        to = list(enabled = TRUE), 
-        from = list(enabled = TRUE)
-      ),
-      color = list(color = "#444444", highlight = "#A6C4FF"),
-      smooth = TRUE) %>%
+      visEdges(
+        arrows = list(
+          to = list(enabled = TRUE),
+          from = list(enabled = TRUE)
+        ),
+        color = list(color = "#444444", highlight = "#A6C4FF"),
+        smooth = TRUE
+      ) %>%
       visOptions(
         highlightNearest = list(enabled = TRUE, labelOnly = TRUE, hover = TRUE)
       ) %>%
       visLegend() %>%
-      visInteraction(hideEdgesOnDrag=TRUE, # "hideEdgesOnDrag" variable: hide edges when dragging the view
-                     dragNodes=TRUE, # "dragNodes" variable: hide nodes when dragging the view
-                     dragView=TRUE, # "dragView" variable: enable or not the movement of the full network
-                     zoomView=TRUE, # "zoomView" variable: enable or not the zoom (use mouse scroll)
-                     navigationButtons=TRUE
-      ) %>% # "navigationButtons" variable: show navigation buttons
+      visInteraction(
+        hideEdgesOnDrag = TRUE,
+        dragNodes = TRUE,
+        dragView = TRUE,
+        zoomView = TRUE,
+        navigationButtons = TRUE
+      ) %>%
       visNodes(
         color = list(
           background = "#69b3a2",
@@ -449,6 +566,65 @@ server <- function(input, output) {
         shadow = list(enabled = TRUE, size = 10)
       )
   })
+  
+  
+  #network2
+  filtered_edges2 <- reactive({
+    country_edges %>%
+      filter(ArrivalDate >= input$time_range[1] & ArrivalDate <= input$time_range[2]) %>%
+      group_by(from, to) %>%
+      summarise(weight = n())
+  })
+  
+  degree_centrality <- reactive({
+    country_nodes %>%
+      select(id, degree_centrality)
+  })
+  
+  filtered_nodes2 <- reactive({
+    filtered_edges2() %>%
+      inner_join(degree_centrality(), by = c("from" = "id")) %>%
+      filter(degree_centrality >= quantile(degree_centrality, input$degree_percentile / 100),
+             weight >= quantile(weight, input$weight_percentile / 100))
+  })
+  
+  output$networkGraph <- renderVisNetwork({
+    visNetwork(
+      nodes = country_nodes,
+      edges = filtered_edges2(),
+      main = "Country Network",
+      width = "100%"
+    ) %>%
+      visIgraphLayout() %>%
+      visLegend() %>%
+      visNodes(
+        color = list(
+          background= "#69b3a2",
+          border = "#428bca"
+        ),
+        shadow = list(enabled=TRUE, size=10)
+      ) %>%
+      visEdges(
+        arrows = list(
+          to = list(enabled = TRUE), 
+          from = list(enabled = TRUE)
+        ),
+        color = list(color = "#444444", highlight = "#A6C4FF"),
+        smooth = TRUE
+      ) %>%
+      visOptions(
+        highlightNearest = list(enabled = TRUE, labelOnly = TRUE, hover = TRUE)
+      ) %>%
+      visInteraction(
+        hideEdgesOnDrag = TRUE,
+        dragNodes = TRUE,
+        dragView = TRUE,
+        zoomView = TRUE,
+        navigationButtons = TRUE
+      )
+  })
+  
+  
   
   # Render the anomaly plot
   output$plot6 <- renderPlotly({
