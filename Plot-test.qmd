@@ -30,18 +30,6 @@ MC2_nodes_clean <- na.omit(MC2_nodes)
 ```
 
 ```{r}
-# Create a list to store the data frames
-MC2_data <- list(
-  edges = MC2_edges_clean,
-  nodes = MC2_nodes_clean
-)
-
-# Save the list as an RDS file
-saveRDS(MC2_data, file = "MC2_data.rds")
-
-```
-
-```{r}
 MC2_data <- MC2_nodes_clean %>%
   left_join(MC2_edges_clean %>% select(source, Arrivaldate, hscode, weightkg, valueofgoodsusd), by = c("id" = "source"))
 

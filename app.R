@@ -52,7 +52,6 @@ ui <- dashboardPage(
       
       menuItem("General", tabName = "tab_summary", icon = icon("anchor"),
                menuSubItem("By Fishtype", tabName = "tab_fishtype", icon = icon("bar-chart")),
-               menuSubItem("# of shipment/Month", tabName = "tab_shipment_month", icon = icon("bar-chart")),
                menuSubItem("Shipment/month by fishtype", tabName = "tab_shipment_by_fishtype", icon = icon("line-chart")),
                menuSubItem("Value of Goods in Time", tabName = "tab_value_of_goods", icon = icon("line-chart")),
                menuSubItem("Weight vs Value of Goods", tabName = "tab_weight_vs_value", icon = icon("area-chart"))
@@ -124,33 +123,8 @@ ui <- dashboardPage(
               )
             )
           ),
-          column(width = 9, plotlyOutput("plot1"))
+          column(width = 8, plotlyOutput("plot1"))
         )
-      ),
-      
-      tabItem(
-        tabName = "tab_shipment_month",
-        fluidRow(
-          column(
-            width = 3,
-            accordion(
-              id = "parameters_shipment_month",
-              accordionItem(
-                title = span("Filters", style = "font-size: 14px; font-weight: bold"),
-                status = "primary",
-                collapsed = FALSE,
-                selectInput(
-                  "month_select",
-                  "Select Month:",
-                  choices = unique(MC2_data_p2$month),
-                  selected = NULL,
-                  multiple = TRUE
-                )
-              )
-            )
-          )
-        ),
-        column(width = 9, plotlyOutput("plot2"))
       ),
       
       tabItem(
@@ -174,7 +148,7 @@ ui <- dashboardPage(
             )
           )
         ),
-        column(width = 9, plotlyOutput("plot3"))
+        column(width = 8, plotlyOutput("plot2"))
       ),
       
       tabItem(
@@ -201,7 +175,7 @@ ui <- dashboardPage(
             )
           )
         ),
-        column(width = 9, plotlyOutput("plot4"))
+        column(width = 8, plotlyOutput("plot3"))
       ),
       
       tabItem(
@@ -220,7 +194,7 @@ ui <- dashboardPage(
             )
           )
         ),
-        plotlyOutput("plot5", height = "600px", width = "800px")
+        plotlyOutput("plot4", height = "600px", width = "800px")
       ),
       
       tabItem(
@@ -252,42 +226,36 @@ ui <- dashboardPage(
         ),
         fluidRow(
           column(
-            width = 9,
+            width = 8,
             visNetworkOutput("network", height = "400px")
           )
         )
       ),
       
-      tabItem("tab_network2",
-              fluidRow(
-                column(width = 3,
-                       accordion(
-                         id = "parameters",
-                         accordionItem(
-                           title = span("Filters", style = "font-size: 14px; font-weight: bold"),
-                           status = "primary",
-                           collapsed = FALSE,
-                           sliderInput("time_range", "Select Time Range:",
-                                       min = min(country_edges$ArrivalDate),
-                                       max = max(country_edges$ArrivalDate),
-                                       value = c(min(country_edges$ArrivalDate), max(country_edges$ArrivalDate)),
-                                       step = 1,
-                                       timeFormat = "%Y-%m",
-                                       ticks = TRUE
-                           ),
-                           sliderInput("degree_percentile", "Degree Centrality Percentile:",
-                                       min = 0, max = 100, value = c(0, 100), step = 20
-                           ),
-                           sliderInput("weight_percentile", "Weight Percentile:",
-                                       min = 0, max = 100, value = c(0, 100), step = 20
-                           )
-                         )
-                       )
-                ),
-                column(width = 9,
-                       visNetworkOutput("networkGraph")
-                )
-              )
+      tabItem(
+        tabName = "tab_network2",
+        fluidRow(
+          column(width = 4,
+                 accordion(
+                   id = "parameters_network2",
+                   accordionItem(
+                     title = span("Filters", style = "font-size: 14px; font-weight: bold"),
+                     status = "primary",
+                     collapsed = FALSE,
+                     sliderInput("time_range_network2", "Select Time Range:",
+                                 min = min(country_edges$ArrivalDate),
+                                 max = max(country_edges$ArrivalDate),
+                                 value = c(min(country_edges$ArrivalDate), max(country_edges$ArrivalDate)),
+                                 step = 1,
+                                 timeFormat = "%Y-%m",
+                                 ticks = TRUE
+                     ),
+                   )
+                 )
+          ),
+          fluidRow(column(width = 8, visNetworkOutput("networkGraph"))
+          )
+        )
       ),
       
       tabItem(
@@ -416,33 +384,11 @@ server <- function(input, output) {
       )
   })
   
+  
+  # Render Plot 2: Total shipment per month by fish type
   output$plot2 <- renderPlotly({
-    req(input$month_select)
-    
-    MC2_data_p2_filtered <- MC2_data_p2 %>%
-      filter(month %in% input$month_select)
-    
-    tt <- paste("Year:", MC2_data_p2_filtered$year, "<br>Month:", MC2_data_p2_filtered$month, "<br>Fish Type:", MC2_data_p2_filtered$fishtype, "<br>No. of Shipments:", MC2_data_p2_filtered$no_shipment)
-    
-    MC2_p2_filtered <- MC2_data_p2_filtered %>%
-      mutate(month = factor(month, levels = 1:12, labels = 1:12)) %>%
-      ggplot(aes(x = month, y = no_shipment, fill = fishtype, text = tt)) +
-      geom_bar(position = "stack", stat = "identity") +
-      scale_fill_viridis_d() +
-      labs(title = "No. of Shipments per Month, 2028 - 2034", x = 'Month', y = 'No. of Shipments') +
-      theme(legend.position = "none") +
-      xlab("") +
-      scale_x_discrete(labels = 1:12)
-    
-    ggplotly(MC2_p2_filtered, tooltip = "text") %>%
-      subplot(nrows = 1, shareX = TRUE)
-  })
-  
-  
-  # Render Plot 3: Total shipment per month by fish type
-  output$plot3 <- renderPlotly({
     # Filter data based on selected fish types
-    MC2_data_p3 <- MC2_data %>%
+    MC2_data_p2 <- MC2_data %>%
       filter(fishtype %in% input$fish_type_select_p3) %>%
       group_by(year = year(Arrivaldate), month = month(Arrivaldate), fishtype) %>%
       summarise(no_shipment = n()) %>%
@@ -451,7 +397,7 @@ server <- function(input, output) {
     
     # Create the plot using plot_ly
     plot_ly(
-      data = MC2_data_p3,
+      data = MC2_data_p2,
       x = ~(year - 2028) * 12 + month,
       y = ~no_shipment,
       color = ~fishtype,
@@ -470,8 +416,8 @@ server <- function(input, output) {
       )
   })
   
-  # Render Plot 4
-  output$plot4 <- renderPlotly({
+  # Render Plot 3
+  output$plot3 <- renderPlotly({
     # Filter the data based on the selected time range
     MC2_data_filtered <- MC2_data %>%
       filter(Arrivaldate >= input$time_range[1] & Arrivaldate <= input$time_range[2])
@@ -483,7 +429,7 @@ server <- function(input, output) {
       summarize(total_value = sum(valueofgoodsusd, na.rm = TRUE))
     
     # Generate the time-series plot using Plotly
-    MC2_p4 <- plot_ly(MC2_monthly_sum, x = ~Month, y = ~total_value, type = "scatter", mode = "lines") %>%
+    MC2_p3 <- plot_ly(MC2_monthly_sum, x = ~Month, y = ~total_value, type = "scatter", mode = "lines") %>%
       layout(
         xaxis = list(
           title = "Month and Year",
@@ -497,12 +443,12 @@ server <- function(input, output) {
   })
   
 
-  output$plot5 <- renderPlotly({
+  output$plot4 <- renderPlotly({
     # Filter data based on selected year
     filtered_data <- MC2_data[format(MC2_data$Arrivaldate, "%Y") == input$yearInput, ]
     
     # Generate the plot using the filtered data
-    plot5 <- ggplot(filtered_data, aes(x = weightkg, y = valueofgoodsusd)) +
+    plot4 <- ggplot(filtered_data, aes(x = weightkg, y = valueofgoodsusd)) +
       geom_hex(bins = 50) +
       scale_x_log10() +
       scale_y_log10() +
@@ -510,11 +456,11 @@ server <- function(input, output) {
       labs(x = "Weight (kg) [Log Scale]", y = "Value of Goods (USD) [Log Scale]",
            title = "Hexbin Plot of Weight vs Value of Goods (Log Scale)")
     
-    ggplotly(plot5)
+    ggplotly(plot4)
   })
   
   
-  
+  #network1
   filtered_edges1 <- reactive({
     edges %>%
       filter(Year == input$year)
@@ -571,21 +517,9 @@ server <- function(input, output) {
   #network2
   filtered_edges2 <- reactive({
     country_edges %>%
-      filter(ArrivalDate >= input$time_range[1] & ArrivalDate <= input$time_range[2]) %>%
+      filter(ArrivalDate >= input$time_range_network2[1] & ArrivalDate <= input$time_range_network2[2]) %>%
       group_by(from, to) %>%
       summarise(weight = n())
-  })
-  
-  degree_centrality <- reactive({
-    country_nodes %>%
-      select(id, degree_centrality)
-  })
-  
-  filtered_nodes2 <- reactive({
-    filtered_edges2() %>%
-      inner_join(degree_centrality(), by = c("from" = "id")) %>%
-      filter(degree_centrality >= quantile(degree_centrality, input$degree_percentile / 100),
-             weight >= quantile(weight, input$weight_percentile / 100))
   })
   
   output$networkGraph <- renderVisNetwork({
@@ -599,14 +533,14 @@ server <- function(input, output) {
       visLegend() %>%
       visNodes(
         color = list(
-          background= "#69b3a2",
+          background = "#69b3a2",
           border = "#428bca"
         ),
-        shadow = list(enabled=TRUE, size=10)
+        shadow = list(enabled = TRUE, size = 10)
       ) %>%
       visEdges(
         arrows = list(
-          to = list(enabled = TRUE), 
+          to = list(enabled = TRUE),
           from = list(enabled = TRUE)
         ),
         color = list(color = "#444444", highlight = "#A6C4FF"),
@@ -623,6 +557,8 @@ server <- function(input, output) {
         navigationButtons = TRUE
       )
   })
+  
+  
   
   
   
